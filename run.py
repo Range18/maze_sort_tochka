@@ -4,6 +4,7 @@ from typing import Tuple, List
 
 TARGETS = {"A": 2, "B": 4, "C": 6, "D": 8}
 COSTS = {"A": 1, "B": 10, "C": 100, "D": 1000}
+TYPES = {"A": 0, "B": 1, "C": 2, "D": 3}
 
 
 class ObjectInfo:
@@ -14,10 +15,6 @@ class ObjectInfo:
         self.room_id = room_id
         self.depth = depth
         self.hall_location = hall_location
-        self.energy = COSTS[self.type]
-
-    def __str__(self):
-        return f"{self.type}: room_id: {self.room_id} depth: {self.depth} hall_location: {self.hall_location}"
 
     def __eq__(self, other):
         return (self.type, self.room_id, self.depth, self.hall_location) == \
@@ -44,7 +41,6 @@ class MazeState:
 
 def get_initial_state(raw_rooms: list[str], depth: int) -> MazeState:
     rows = [raw_room[3:10:2] for raw_room in raw_rooms]
-    print(rows)
     locations = []
     for i in range(depth):
         for j in range(len(rows[i])):
@@ -77,15 +73,21 @@ def get_type_objects(obj: ObjectInfo, state: MazeState) -> list[ObjectInfo]:
     return locations
 
 
+def get_room_objects(state: MazeState, target: int, max_depth: int) -> list[int]:
+    room = [-1] * max_depth
+    for obj in state.locations:
+        if obj.room_id == target:
+            room[max_depth - obj.depth] = TYPES[obj.type]
+    return room
+
+
 def is_all_in_right_room(obj: ObjectInfo, state: MazeState) -> bool:
     if obj.room_id != TARGETS[obj.type]:
         return False
-    depths = [obj.depth]
     for other in get_type_objects(obj, state):
         if other.room_id != TARGETS[obj.type]:
             return False
-        depths.append(other.depth)
-    return depths == list(set(depths))
+    return True
 
 
 def is_target_with_foreigners(obj: ObjectInfo, state: MazeState) -> bool:
@@ -139,22 +141,19 @@ def get_all_sub_states(state: MazeState, max_depth: int) -> list[MazeState]:
 
         if not is_obj_blocked_in_room(obj, state):
             if not is_target_with_foreigners(obj, state):
-                partner = get_type_objects(obj, state)[0]
+                target_depth = max_depth
+                room = get_room_objects(state, TARGETS[obj.type], max_depth)
 
-                if partner.room_id == TARGETS[obj.type]:
-                    if partner.depth != 1:
+                while room[max_depth - target_depth] != -1:
+                    target_depth -= 1
 
-                        if not check_blocking_obj_in_hall(state.locations, obj, TARGETS[obj.type]):
-                            yield go_to_target(obj, i, state, 1, room_out_cost, object_location)
+                if not check_blocking_obj_in_hall(state.locations, obj, TARGETS[obj.type]):
+                    yield go_to_target(obj, i, state, target_depth, room_out_cost, object_location)
 
-                else:
-                    if not is_any_in_target(obj, state):
-                        if not check_blocking_obj_in_hall(state.locations, obj, TARGETS[obj.type]):
-                            yield go_to_target(obj, i, state, 2, room_out_cost, object_location)
         if obj.room_id == -1:
             continue
 
-        if obj.depth == max_depth and is_obj_blocked_in_room(obj, state):
+        if obj.depth > 1 and is_obj_blocked_in_room(obj, state):
             continue
 
         for dest_loc in [0, 1, 3, 5, 7, 9, 10]:
