@@ -52,6 +52,7 @@ def solve(virus_start: str, edges: list[tuple[str, str]]) -> list[str]:
     Решение задачи об изоляции вируса
 
     Args:
+        virus_start: стартовая позиция вируса
         edges: список коридоров в формате (узел1, узел2)
 
     Returns:
