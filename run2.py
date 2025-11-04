@@ -35,6 +35,7 @@ def get_min_distance_gateway(distances: dict[str, int]) -> str:
 
 def get_virus_move(virus_position: str, graph: dict[str, list[str]], gateways: set[str]) -> str | None:
     distances: dict[str, int] = get_best_distances(virus_position, graph, gateways)
+
     if not distances:
         return None
 
