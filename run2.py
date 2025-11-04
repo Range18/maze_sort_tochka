@@ -26,6 +26,10 @@ def get_min_distance_gateway(distances: dict[str, int]) -> str:
         if distance < min_distance:
             min_distance = distance
             target = gateway
+        if distance == min_distance:
+            if target is not None and gateway < target:
+                min_distance = distance
+                target = gateway
     return target
 
 
