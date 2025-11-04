@@ -150,7 +150,8 @@ def get_all_sub_states(maze_state: State, max_depth: int) -> list[State]:
             if room_id == TARGETS[obj_type]:
                 if obj_depth == max_depth:
                     continue
-                if is_all_in_right_room(i, state):
+                if get_room_objects(state, TARGETS[obj_type], max_depth)[:max_depth - obj_depth] == [obj_type] * (
+                        max_depth - obj_depth):
                     continue
 
         room_out_cost = 0 if room_id == -1 else obj_depth
