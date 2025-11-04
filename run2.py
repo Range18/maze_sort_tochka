@@ -27,7 +27,7 @@ def get_min_distance_gateway(distances: dict[str, int]) -> str:
             min_distance = distance
             target = gateway
         if distance == min_distance:
-            if target is not None and gateway < target:
+            if target is None or gateway < target:
                 min_distance = distance
                 target = gateway
     return target
@@ -49,7 +49,69 @@ def get_virus_move(virus_position: str, graph: dict[str, list[str]], gateways: s
         if distance_to_target < min_distance:
             min_distance = distance_to_target
             min_next_node = neighbor
+        if distance_to_target == min_distance:
+            if min_next_node is None or neighbor < min_next_node:
+                min_distance = distance_to_target
+                min_next_node = neighbor
     return min_next_node
+
+
+def encode_state(virus_pos: str, graph: dict[str, list[str]], gateways: set[str]) -> tuple:
+    gateway_edges = []
+    for gateway in sorted(gateways):
+        for neighbor in graph[gateway]:
+            if neighbor.islower():
+                gateway_edges.append((gateway, neighbor))
+    return virus_pos, tuple(gateway_edges)
+
+
+def solve_recursive(virus_pos: str, graph: dict[str, list[str]], gateways: set[str], cache: dict) -> list[str] | None:
+    key = encode_state(virus_pos, graph, gateways)
+    if key in cache:
+        return cache[key]
+
+    possible_disconnects = []
+    for gateway in sorted(gateways):
+        for neighbor in sorted(graph[gateway]):
+            if neighbor.islower():
+                possible_disconnects.append((gateway, neighbor))
+
+    if not possible_disconnects:
+        cache[key] = []
+        return []
+
+    for gateway, neighbor in possible_disconnects:
+        graph[gateway].remove(neighbor)
+        graph[neighbor].remove(gateway)
+
+        next_move = get_virus_move(virus_pos, graph, gateways)
+        if next_move is None:
+            graph[gateway].append(neighbor)
+            graph[neighbor].append(gateway)
+            graph[gateway].sort()
+            graph[neighbor].sort()
+            cache[key] = [f"{gateway}-{neighbor}"]
+            return cache[key]
+
+        if next_move in gateways:
+            graph[gateway].append(neighbor)
+            graph[neighbor].append(gateway)
+            graph[gateway].sort()
+            graph[neighbor].sort()
+            continue
+
+        result = solve_recursive(next_move, graph, gateways, cache)
+        graph[gateway].append(neighbor)
+        graph[neighbor].append(gateway)
+        graph[gateway].sort()
+        graph[neighbor].sort()
+
+        if result is not None:
+            cache[key] = [f"{gateway}-{neighbor}"] + result
+            return cache[key]
+
+    cache[key] = None
+    return None
 
 
 def solve(virus_start: str, edges: list[tuple[str, str]]) -> list[str]:
@@ -71,40 +133,19 @@ def solve(virus_start: str, edges: list[tuple[str, str]]) -> list[str]:
     for u, v in edges:
         graph[u].append(v)
         graph[v].append(u)
-
+        nodes.add(u)
+        nodes.add(v)
         if u.isupper():
             gateways.add(u)
         if v.isupper():
             gateways.add(v)
 
-        nodes.add(u)
-        nodes.add(v)
+    for n in list(graph.keys()):
+        graph[n].sort()
 
-    virus_position: str = virus_start
-    result: list[str] = []
-
-    while True:
-        possible_disconnects: list[tuple[str, str]] = []
-        for gateway in sorted(gateways):
-            for neighbor in sorted(graph[gateway]):
-                if neighbor.islower():
-                    possible_disconnects.append((gateway, neighbor))
-
-        if not possible_disconnects:
-            break
-
-        disconnected_gateway, disconnected_neighbor = possible_disconnects[0]
-        result.append(f'{disconnected_gateway}-{disconnected_neighbor}')
-
-        graph[disconnected_gateway].remove(disconnected_neighbor)
-        graph[disconnected_neighbor].remove(disconnected_gateway)
-
-        next_virus_position: str = get_virus_move(virus_position, graph, gateways)
-        if next_virus_position is None:
-            break
-        virus_position = next_virus_position
-
-    return result
+    cache = {}
+    result = solve_recursive(virus_start, graph, gateways, cache)
+    return result or []
 
 
 def main():
