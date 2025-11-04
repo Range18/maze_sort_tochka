@@ -1,44 +1,18 @@
 import sys
 import heapq
-from typing import Tuple, List, Union
+from typing import Tuple, List
 
 TARGETS = {0: 2, 1: 4, 2: 6, 3: 8}
 COSTS = {0: 1, 1: 10, 2: 100, 3: 1000}
 TYPES = {"A": 0, "B": 1, "C": 2, "D": 3}
 
-Location = Tuple[int, int, int]
+Location = Tuple[int, int, int, int]
 State = Tuple[int, Tuple[Location]]
 
 
 # ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
 # MazeState (cost, (ObjectInfos))
-# class ObjectInfo:
-#     def __init__(self, obj_type: str, room_id: int = -1, depth: int = -1, hall_location: int = -1) -> None:
-#         if room_id == -1 and hall_location == -1:
-#             raise ValueError("Either room_id and depth or hall_location must be specified")
-#         self.type = obj_type
-#         self.room_id = room_id
-#         self.depth = depth
-#         self.hall_location = hall_location
-#
-#     def __eq__(self, other):
-#         return (self.type, self.room_id, self.depth, self.hall_location) == \
-#             (other.type, other.room_id, other.depth, other.hall_location)
-#
-#     def __hash__(self):
-#         return hash((self.type, self.room_id, self.depth, self.hall_location))
-#
-#
-# class MazeState:
-#     def __init__(self, locations: list[ObjectInfo], cost: int = 0) -> None:
-#         self.locations = locations
-#         self.cost = cost
-#         self.state_key = frozenset(self.locations)
-
-
-# ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
-# MazeState (cost, (ObjectInfos))
-def is_finish_state(locations: tuple[Location], max_depth: int) -> bool:
+def is_finish_state(locations: tuple[Location]) -> bool:
     for i, obj in enumerate(locations):
         if obj[0] != TARGETS[obj[3]]:
             return False
@@ -47,14 +21,14 @@ def is_finish_state(locations: tuple[Location], max_depth: int) -> bool:
 
 # ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
 # MazeState (cost, (ObjectInfos))
-def get_initial_state(raw_rooms: list[str], depth: int) -> tuple[Location]:
+def get_initial_state(raw_rooms: list[str], depth: int) -> tuple[int, Tuple[Location]]:
     rows = [raw_room[3:10:2] for raw_room in raw_rooms]
     locations = []
     for i in range(depth):
         for j in range(len(rows[i])):
             locations.append(((j + 1) * 2, i + 1, -1, TYPES[rows[i][j]]))
     locations.sort(key=lambda x: x[3])
-    return tuple(locations)
+    return 0, tuple(locations)
 
 
 def get_depth(maze: list[str]) -> int:
@@ -64,26 +38,28 @@ def get_depth(maze: list[str]) -> int:
 # ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
 # MazeState (cost, (ObjectInfos))
 def check_blocking_obj_in_hall(locations: tuple[Location], obj_id: int, dest_room: int) -> bool:
-    obj = locations[obj_id]
-    loc = max(obj[0], obj[2])
+    room, _, hall, _ = locations[obj_id]
+    loc = max(room, hall)
 
     for i in range(len(locations)):
-        if i == obj_id or locations[i][2] == -1:
+        _, _, other_hall, _ = locations[i]
+        if i == obj_id or other_hall == -1:
             continue
 
-        if (loc <= locations[i][2] <= dest_room) or (
-                dest_room <= locations[i][2] <= loc):
+        if (loc <= other_hall <= dest_room) or (
+                dest_room <= other_hall <= loc):
             return True
     return False
 
 
 # ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
 # MazeState (cost, (ObjectInfos))
-def get_type_objects(obj_id: int, state: tuple[Location], max_depth: int) -> tuple[Location]:
+def get_type_objects(obj_id: int, state: tuple[Location]) -> tuple[Location]:
     locations = []
-    obj = state[obj_id]
+    _, _, _, obj_type = state[obj_id]
     for i in range(len(state)):
-        if i != obj_id and (state[i][3]) == (obj[3]):
+        _, _, _, other_type = state[i]
+        if i != obj_id and other_type == obj_type:
             locations.append(state[i])
     return tuple(locations)
 
@@ -93,48 +69,48 @@ def get_type_objects(obj_id: int, state: tuple[Location], max_depth: int) -> tup
 def get_room_objects(state: tuple[Location], target: int, max_depth: int) -> list[int]:
     room = [-1] * max_depth
     for i in range(len(state)):
-        obj = state[i]
-        if obj[0] == target:
-            room[max_depth - obj[1]] = obj[3]
+        room_id, depth, _, obj_type = state[i]
+        if room_id == target:
+            room[max_depth - depth] = obj_type
     return room
 
 
 # ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
 # MazeState (cost, (ObjectInfos))
-def is_all_in_right_room(obj_id: int, state: tuple[Location], max_depth: int) -> bool:
-    obj = state[obj_id]
-    if obj[0] != TARGETS[obj[3]]:
+def is_all_in_right_room(obj_id: int, state: tuple[Location]) -> bool:
+    room_id, _, _, obj_type = state[obj_id]
+    if room_id != TARGETS[obj_type]:
         return False
-    for other in get_type_objects(obj_id, state, max_depth):
-        if other[0] != TARGETS[obj[3]]:
+    for other in get_type_objects(obj_id, state):
+        if other[0] != TARGETS[obj_type]:
             return False
     return True
 
 
 # ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
 # MazeState (cost, (ObjectInfos))
-def is_target_with_foreigners(obj_id: int, state: tuple[Location], max_depth: int) -> bool:
-    obj = state[obj_id]
-    target = TARGETS[obj[3]]
+def is_target_with_foreigners(obj_id: int, state: tuple[Location]) -> bool:
+    _, _, _, obj_type = state[obj_id]
+    target = TARGETS[obj_type]
     for i in range(len(state)):
-        other = state[i]
-        if i == obj_id or other[0] == -1 or (other[3]) == (obj[3]):
+        other_room, other_depth, _, other_type = state[i]
+        if i == obj_id or other_room == -1 or other_type == obj_type:
             continue
-        if other[0] == target:
+        if other_room == target:
             return True
     return False
 
 
 # ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
 # MazeState (cost, (ObjectInfos))
-def is_any_in_target(obj_id: int, state: tuple[Location], max_depth: int) -> bool:
+def is_any_in_target(obj_id: int, state: tuple[Location]) -> bool:
     obj = state[obj_id]
     target = TARGETS[obj[3]]
     for i in range(len(state)):
-        other = state[i]
-        if i == obj_id or other[0] == -1:
+        other_room, other_depth, _, _ = state[i]
+        if i == obj_id or other_room == -1:
             continue
-        if other[0] == target:
+        if other_room == target:
             return True
     return False
 
@@ -142,12 +118,12 @@ def is_any_in_target(obj_id: int, state: tuple[Location], max_depth: int) -> boo
 # ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
 # MazeState (cost, (ObjectInfos))
 def is_obj_blocked_in_room(obj_id: int, state: tuple[Location]) -> bool:
-    obj = state[obj_id]
+    room_id, obj_depth, _, _ = state[obj_id]
     for i in range(len(state)):
-        other = state[i]
+        other_room, other_depth, _, _ = state[i]
         if i == obj_id:
             continue
-        if other[0] == obj[0] and other[1] != -1 and other[1] < obj[1]:
+        if other_room == room_id and other_depth != -1 and other_depth < obj_depth:
             return True
     return False
 
@@ -155,7 +131,7 @@ def is_obj_blocked_in_room(obj_id: int, state: tuple[Location]) -> bool:
 # ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
 # MazeState (cost, (ObjectInfos))
 def go_to_target(obj_index: int, maze_state: State, depth: int, room_out_cost: int,
-                 object_location: int, max_depth: int) -> State:
+                 object_location: int) -> State:
     state_cost, state = maze_state
     obj_type = state[obj_index][3]
     cost_to_move = COSTS[obj_type] * (abs(object_location - TARGETS[obj_type]) + depth + room_out_cost)
@@ -169,35 +145,41 @@ def go_to_target(obj_index: int, maze_state: State, depth: int, room_out_cost: i
 def get_all_sub_states(maze_state: State, max_depth: int) -> list[State]:
     state_cost, state = maze_state
     for i, obj in enumerate(state):
-        obj_type = obj[3]
-        if obj[2] == -1:
-            if obj[0] == TARGETS[obj_type]:
-                if obj[1] == max_depth:
+        room_id, obj_depth, hall, obj_type = obj
+        if hall == -1:
+            if room_id == TARGETS[obj_type]:
+                if obj_depth == max_depth:
                     continue
-            if is_all_in_right_room(i, state, max_depth):
-                continue
+                if is_all_in_right_room(i, state):
+                    continue
 
-        room_out_cost = 0 if obj[0] == -1 else obj[1]
-        object_location = max(obj[0], obj[2])
+        room_out_cost = 0 if room_id == -1 else obj_depth
+        object_location = max(room_id, hall)
 
-        if not is_obj_blocked_in_room(i, state):
-            if not is_target_with_foreigners(i, state, max_depth):
+        dest_room = TARGETS[obj_type]
+
+        is_not_obj_blocked_in_room = True
+        if room_id != -1 and obj_depth > 1:
+            is_not_obj_blocked_in_room = not is_obj_blocked_in_room(i, state)
+
+        if is_not_obj_blocked_in_room:
+            if not is_target_with_foreigners(i, state):
                 target_depth = max_depth
-                room = get_room_objects(state, TARGETS[obj_type], max_depth)
+                room = get_room_objects(state, dest_room, max_depth)
                 while room[max_depth - target_depth] != -1:
                     target_depth -= 1
 
-                if not check_blocking_obj_in_hall(state, i, TARGETS[obj_type]):
-                    yield go_to_target(i, maze_state, target_depth, room_out_cost, object_location, max_depth)
+                if not check_blocking_obj_in_hall(state, i, dest_room):
+                    yield go_to_target(i, maze_state, target_depth, room_out_cost, object_location)
 
-        if obj[0] == -1:
+        if room_id == -1:
             continue
 
-        if obj[1] > 1 and is_obj_blocked_in_room(i, state):
+        if obj_depth > 1 and is_obj_blocked_in_room(i, state):
             continue
 
         for dest_loc in [0, 1, 3, 5, 7, 9, 10]:
-            cost_to_move = COSTS[obj_type] * (abs(obj[0] - dest_loc) + obj[1])
+            cost_to_move = COSTS[obj_type] * (abs(room_id - dest_loc) + obj_depth)
 
             if check_blocking_obj_in_hall(state, i, dest_loc):
                 continue
@@ -222,14 +204,14 @@ def solve(lines: list[str]) -> int | None:
     initial_state = get_initial_state(raw_rooms, max_depth)
 
     visited: set[frozenset] = set()
-    pq: List[State] = [(0, initial_state)]
+    pq: List[State] = [initial_state]
     while pq:
         curr_cost, curr_state = heapq.heappop(pq)
         key = frozenset(curr_state)
         if key in visited:
             continue
         visited.add(key)
-        if is_finish_state(curr_state, max_depth):
+        if is_finish_state(curr_state):
             return curr_cost
         for cost, next_state in get_all_sub_states((curr_cost, curr_state), max_depth):
             if frozenset(next_state) in visited:
