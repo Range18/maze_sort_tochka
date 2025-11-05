@@ -10,8 +10,6 @@ Location = Tuple[int, int, int, int]
 State = Tuple[int, Tuple[Location]]
 
 
-# ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
-# MazeState (cost, (ObjectInfos))
 def is_finish_state(locations: tuple[Location]) -> bool:
     for i, obj in enumerate(locations):
         if obj[0] != TARGETS[obj[3]]:
@@ -19,8 +17,6 @@ def is_finish_state(locations: tuple[Location]) -> bool:
     return True
 
 
-# ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
-# MazeState (cost, (ObjectInfos))
 def get_initial_state(raw_rooms: list[str], depth: int) -> tuple[int, Tuple[Location]]:
     rows = [raw_room[3:10:2] for raw_room in raw_rooms]
     locations = []
@@ -35,8 +31,6 @@ def get_depth(maze: list[str]) -> int:
     return len(maze) - 3
 
 
-# ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
-# MazeState (cost, (ObjectInfos))
 def check_blocking_obj_in_hall(locations: tuple[Location], obj_id: int, dest_room: int) -> bool:
     room, _, hall, _ = locations[obj_id]
     loc = max(room, hall)
@@ -52,8 +46,6 @@ def check_blocking_obj_in_hall(locations: tuple[Location], obj_id: int, dest_roo
     return False
 
 
-# ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
-# MazeState (cost, (ObjectInfos))
 def get_type_objects(obj_id: int, state: tuple[Location]) -> tuple[Location]:
     locations = []
     _, _, _, obj_type = state[obj_id]
@@ -64,8 +56,6 @@ def get_type_objects(obj_id: int, state: tuple[Location]) -> tuple[Location]:
     return tuple(locations)
 
 
-# ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
-# MazeState (cost, (ObjectInfos))
 def get_room_objects(state: tuple[Location], target: int, max_depth: int) -> list[int]:
     room = [-1] * max_depth
     for i in range(len(state)):
@@ -75,8 +65,6 @@ def get_room_objects(state: tuple[Location], target: int, max_depth: int) -> lis
     return room
 
 
-# ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
-# MazeState (cost, (ObjectInfos))
 def is_all_in_right_room(obj_id: int, state: tuple[Location]) -> bool:
     room_id, _, _, obj_type = state[obj_id]
     if room_id != TARGETS[obj_type]:
@@ -87,8 +75,6 @@ def is_all_in_right_room(obj_id: int, state: tuple[Location]) -> bool:
     return True
 
 
-# ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
-# MazeState (cost, (ObjectInfos))
 def is_target_with_foreigners(obj_id: int, state: tuple[Location]) -> bool:
     _, _, _, obj_type = state[obj_id]
     target = TARGETS[obj_type]
@@ -101,8 +87,6 @@ def is_target_with_foreigners(obj_id: int, state: tuple[Location]) -> bool:
     return False
 
 
-# ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
-# MazeState (cost, (ObjectInfos))
 def is_any_in_target(obj_id: int, state: tuple[Location]) -> bool:
     obj = state[obj_id]
     target = TARGETS[obj[3]]
@@ -115,8 +99,6 @@ def is_any_in_target(obj_id: int, state: tuple[Location]) -> bool:
     return False
 
 
-# ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
-# MazeState (cost, (ObjectInfos))
 def is_obj_blocked_in_room(obj_id: int, state: tuple[Location]) -> bool:
     room_id, obj_depth, _, _ = state[obj_id]
     for i in range(len(state)):
@@ -128,8 +110,6 @@ def is_obj_blocked_in_room(obj_id: int, state: tuple[Location]) -> bool:
     return False
 
 
-# ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
-# MazeState (cost, (ObjectInfos))
 def go_to_target(obj_index: int, maze_state: State, depth: int, room_out_cost: int,
                  object_location: int) -> State:
     state_cost, state = maze_state
@@ -140,8 +120,6 @@ def go_to_target(obj_index: int, maze_state: State, depth: int, room_out_cost: i
     return state_cost + cost_to_move, tuple(locations_copy)
 
 
-# ObjectInfo (room_id: int = -1, depth: int = -1, hall_location: int = -1)
-# MazeState (cost, (ObjectInfos))
 def get_all_sub_states(maze_state: State, max_depth: int) -> list[State]:
     state_cost, state = maze_state
     for i, obj in enumerate(state):
